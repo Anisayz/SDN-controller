@@ -1,8 +1,3 @@
-# main.py
-from ryu.base import app_manager
-from controller import of_handler
 
-# Start Ryu with your    apps
-app_manager.AppManager.run_apps([
-    "controller.of_handler"
-])
+from app.l2_switch import L2Switch          # noqa: F401  (import = register)
+from app.topology import TopologyDiscovery  # noqa: F401  (import = register)
