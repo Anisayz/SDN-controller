@@ -140,17 +140,17 @@ class StateStore:
     def get_firewall_rules(self):
         """All rules — active and expired — for the dashboard history view."""
         with self._lock:
-            return list(self._firewall_rules.values())
+            return [dict(r) for r in self._firewall_rules.values()]
 
     def get_active_firewall_rules(self):
         """Only currently enforced rules."""
         with self._lock:
-            return [r for r in self._firewall_rules.values() if r.get("active")]
+            return [dict(r) for r in self._firewall_rules.values() if r.get("active")]
 
     def get_firewall_rule(self, rule_id):
         with self._lock:
-            return self._firewall_rules.get(rule_id)
-
+            rule = self._firewall_rules.get(rule_id)
+            return dict(rule) if rule else None
     def mark_rule_inactive(self, rule_id):
        
         with self._lock:
@@ -175,7 +175,7 @@ class StateStore:
     def get_rules_for_dpid(self, dpid):
         with self._lock:
             return [
-                r for r in self._firewall_rules.values()
+                dict(r) for r in self._firewall_rules.values()
                 if r.get("dpid") == dpid and r.get("active")
             ]
 

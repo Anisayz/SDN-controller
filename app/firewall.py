@@ -29,7 +29,7 @@ class FirewallApp(app_manager.RyuApp):
         # meter ID counter — one per rate-limited IP
         self._next_meter_id = 1
         # rule_id → cookie (int) so we can delete by cookie
-        self._rule_cookies: dict[str, int] = {}
+        self._rule_cookies: dict[int, str] = {}  # cookie → rule_id
         # cookie counter
         self._next_cookie = 1
         logger.info("FirewallApp started")
@@ -67,8 +67,8 @@ class FirewallApp(app_manager.RyuApp):
         source: str = "mitigation_engine",
     ) -> dict:
     
-        idle_timeout = idle_timeout or FIREWALL_DEFAULT_IDLE_TIMEOUT
-        hard_timeout = hard_timeout or FIREWALL_DEFAULT_HARD_TIMEOUT
+        idle_timeout = FIREWALL_DEFAULT_IDLE_TIMEOUT if idle_timeout is None else idle_timeout
+        hard_timeout = FIREWALL_DEFAULT_HARD_TIMEOUT if hard_timeout is None else hard_timeout
 
         datapaths = self._resolve_datapaths(src_ip, dpid)
         if not datapaths:

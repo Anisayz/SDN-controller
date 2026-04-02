@@ -42,7 +42,7 @@ class RestAPI(app_manager.RyuApp):
         # We retrieve it here via set_firewall_app / get_firewall_app.
         wsgi.register(
             FirewallRestController,
-            {FIREWALL_APP_KEY: self},   # passed as kwargs to controller __init__
+            {},   # no data needed; FirewallApp retrieved via _get_fw()
         )
         logger.info("REST API registered | port=8080")
 
@@ -52,8 +52,6 @@ class FirewallRestController(ControllerBase):
 
     def __init__(self, req, link, data, **config):
         super().__init__(req, link, data, **config)
-        # data dict injected by wsgi.register()
-        self._ryu_app = data[FIREWALL_APP_KEY]
 
     # ------------------------------------------------------------------ #
     #  Auth helper                                                         #
