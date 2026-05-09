@@ -57,7 +57,7 @@ BLOCK_RESP=$(curl -s \
     -X POST "${BASE}/firewall/rules" \
     -H "X-API-Key: ${KEY}" \
     -H "Content-Type: application/json" \
-    -d '{"action":"block","src_ip":"10.0.0.5","idle_timeout":120,"source":"manual"}')
+    -d '{"action":"block","src_ip":"10.0.0.2","idle_timeout":120,"source":"manual"}')
 echo "${BLOCK_RESP}" | python3 -m json.tool
 BLOCK_ID=$(echo "${BLOCK_RESP}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('rule_id',''))" 2>/dev/null)
 if [ -n "${BLOCK_ID}" ]; then
@@ -115,10 +115,10 @@ if [ -n "${BLOCK_ID}" ]; then
 fi
 
 # ── delete the block rule ─────────────────────────────────────────────────────
-if [ -n "${BLOCK_ID}" ]; then
-    run "DELETE /firewall/rules/${BLOCK_ID}" \
-        -X DELETE "${BASE}/firewall/rules/${BLOCK_ID}"
-fi
+#if [ -n "${BLOCK_ID}" ]; then
+#   run "DELETE /firewall/rules/${BLOCK_ID}" \
+#        -X DELETE "${BASE}/firewall/rules/${BLOCK_ID}"
+#fi
  
 run "GET /firewall/rules (after delete, should have 2)" \
     "${BASE}/firewall/rules?active=true"

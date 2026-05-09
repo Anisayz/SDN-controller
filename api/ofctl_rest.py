@@ -1,4 +1,3 @@
- 
 import json
 import logging
 import time
@@ -18,12 +17,10 @@ from config.config import FIREWALL_API_KEY
 
 logger = logging.getLogger("ryu_lab.rest")
 
-# name used to share the FirewallApp instance with the REST controller
 FIREWALL_APP_KEY = "firewall_app"
 
 
 class RestAPI(app_manager.RyuApp):
- 
 
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
     _CONTEXTS = {"wsgi": WSGIApplication}
@@ -31,24 +28,14 @@ class RestAPI(app_manager.RyuApp):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         wsgi = kwargs["wsgi"]
-
-        # We need to pass the FirewallApp instance to the REST controller
-        # because REST controllers are plain classes (not Ryu apps) and
-        # can't access other apps directly.
-        # We do this via the wsgi.register() data dict.
-
-        # NOTE: FirewallApp must be instantiated before RestAPI.
-        # main.py imports FirewallApp first, so app_manager starts it first.
-        # We retrieve it here via set_firewall_app / get_firewall_app.
         wsgi.register(
             FirewallRestController,
-            {},   # no data needed; FirewallApp retrieved via _get_fw()
+            {},
         )
         logger.info("REST API registered | port=8080")
 
 
 class FirewallRestController(ControllerBase):
- 
 
     def __init__(self, req, link, data, **config):
         super().__init__(req, link, data, **config)
@@ -58,9 +45,8 @@ class FirewallRestController(ControllerBase):
     # ------------------------------------------------------------------ #
 
     def _check_auth(self, req) -> bool:
-        """Validate X-API-Key header."""
         if not FIREWALL_API_KEY:
-            return True   # no key configured → open access (lab only)
+            return True
         return req.headers.get("X-API-Key") == FIREWALL_API_KEY
 
     def _unauthorized(self):
@@ -92,16 +78,14 @@ class FirewallRestController(ControllerBase):
         """
         Install a new firewall rule.
 
-        Called by the Mitigation Engine when it decides to act on an alert.
-
         Request body (JSON):
         {
             "action":       "block" | "ratelimit" | "isolate",
             "src_ip":       "10.0.0.5",
-            "rate_kbps":    1000,          // required for ratelimit only
-            "dpid":         1,             // optional — omit to auto-detect
-            "idle_timeout": 60,            // optional
-            "hard_timeout": 300,           // optional
+            "rate_kbps":    1000,
+            "dpid":         1,
+            "idle_timeout": 60,
+            "hard_timeout": 300,
             "source":       "mitigation_engine"
         }
 
@@ -121,19 +105,18 @@ class FirewallRestController(ControllerBase):
         except Exception:
             return self._bad("invalid JSON body")
 
-        action  = body.get("action")
-        src_ip  = body.get("src_ip")
-        source  = body.get("source", "mitigation_engine")
-        dpid    = body.get("dpid")
-        idle    = body.get("idle_timeout")
-        hard    = body.get("hard_timeout")
+        action = body.get("action")
+        src_ip = body.get("src_ip")
+        source = body.get("source", "mitigation_engine")
+        dpid   = body.get("dpid")
+        idle   = body.get("idle_timeout")
+        hard   = body.get("hard_timeout")
 
         if action not in ("block", "ratelimit", "isolate"):
             return self._bad("action must be block | ratelimit | isolate")
         if not src_ip:
             return self._bad("src_ip is required")
 
-        # retrieve the FirewallApp singleton
         fw = _get_fw()
         if fw is None:
             return self._bad("FirewallApp not ready", status=503)
@@ -179,16 +162,11 @@ class FirewallRestController(ControllerBase):
 
     @route("firewall", "/firewall/rules", methods=["GET"])
     def list_rules(self, req, **kwargs):
-   
         if not self._check_auth(req):
             return self._unauthorized()
 
         active_only = req.GET.get("active", "").lower() == "true"
-
-        if active_only:
-            rules = store.get_active_firewall_rules()
-        else:
-            rules = store.get_firewall_rules()
+        rules = store.get_active_firewall_rules() if active_only else store.get_firewall_rules()
 
         logger.debug("REST GET /firewall/rules | count=%d | active_only=%s",
                      len(rules), active_only)
@@ -196,7 +174,6 @@ class FirewallRestController(ControllerBase):
 
     @route("firewall", "/firewall/rules/{rule_id}", methods=["GET"])
     def get_rule(self, req, **kwargs):
-    
         if not self._check_auth(req):
             return self._unauthorized()
 
@@ -210,7 +187,6 @@ class FirewallRestController(ControllerBase):
 
     @route("firewall", "/firewall/rules/{rule_id}", methods=["DELETE"])
     def delete_rule(self, req, **kwargs):
-   
         if not self._check_auth(req):
             return self._unauthorized()
 
@@ -234,19 +210,21 @@ class FirewallRestController(ControllerBase):
 
     @route("topology", "/topology", methods=["GET"])
     def get_topology(self, req, **kwargs):
-      
         if not self._check_auth(req):
             return self._unauthorized()
 
         topo = store.get_topology()
 
-        switches = []
+        # switches: plain object keyed by DPID string — mapRyuTopologyBundle
+        # iterates Object.keys(switches), so it must NOT be an array.
+        switches = {}
         for dp in store.get_all_datapaths():
-            switches.append({
-                "dpid":    format(dp.id, "016x"),
+            dpid_str = format(dp.id, "016x")
+            switches[dpid_str] = {
                 "address": str(dp.address),
-            })
+            }
 
+        # links: flat shape — matches the JS mapper's second branch
         links = []
         for src_dpid, neighbors in topo.items():
             for dst_dpid, (src_port, dst_port) in neighbors.items():
@@ -257,7 +235,25 @@ class FirewallRestController(ControllerBase):
                     "dst_port": dst_port,
                 })
 
-        return self._ok({"switches": switches, "links": links})
+        # hosts: MAC table enriched with IP addresses learned from
+        # IPv4 and ARP packets via store.learn_ip_for_mac()
+        hosts = []
+        raw_mac = store.get_mac_table()
+        for dpid_int, entries in raw_mac.items():
+            dpid_str = format(dpid_int, "016x")
+            for mac, port in entries.items():
+                hosts.append({
+                    "mac":  mac,
+                    "ipv4": store.get_ips_for_mac(mac),
+                    "port": port,
+                    "dpid": dpid_str,
+                })
+
+        return self._ok({
+            "switches": switches,
+            "links":    links,
+            "hosts":    hosts,
+        })
 
     # ------------------------------------------------------------------ #
     #  Switches & MAC table — Dashboard                                    #
@@ -271,7 +267,7 @@ class FirewallRestController(ControllerBase):
 
         result = []
         for dp in store.get_all_datapaths():
-            dpid = dp.id
+            dpid  = dp.id
             rules = store.get_rules_for_dpid(dpid)
             result.append({
                 "dpid":         format(dpid, "016x"),
@@ -282,7 +278,6 @@ class FirewallRestController(ControllerBase):
 
     @route("mactable", "/mactable", methods=["GET"])
     def get_mac_table(self, req, **kwargs):
-     
         if not self._check_auth(req):
             return self._unauthorized()
 
@@ -294,6 +289,7 @@ class FirewallRestController(ControllerBase):
                     "dpid": format(dpid_int, "016x"),
                     "mac":  mac,
                     "port": port,
+                    "ipv4": store.get_ips_for_mac(mac),
                 })
         return self._ok({"count": len(table), "entries": table})
 
@@ -303,7 +299,7 @@ class FirewallRestController(ControllerBase):
 
     @route("dump", "/dump", methods=["GET"])
     def dump_state(self, req, **kwargs):
-        """Trigger a full state dump to the log file. Useful in the lab."""
+        """Trigger a full state dump to the log file."""
         if not self._check_auth(req):
             return self._unauthorized()
         store.dump()
@@ -325,9 +321,5 @@ class FirewallRestController(ControllerBase):
 # ------------------------------------------------------------------ #
 
 def _get_fw() -> FirewallApp:
-    """
-    Retrieve the global FirewallApp singleton.
-    We use Ryu's app_manager to look it up by name.
-    """
     from ryu.base.app_manager import lookup_service_brick
     return lookup_service_brick("FirewallApp")

@@ -15,7 +15,7 @@ FLOW_HARD_TIMEOUT        = 120  # max lifetime regardless of traffic
  
 FIREWALL_BLOCK_PRIORITY       = 200
 FIREWALL_METER_PRIORITY       = 150
-FIREWALL_DEFAULT_IDLE_TIMEOUT = 60    # 1 minute default for firewall rules
+FIREWALL_DEFAULT_IDLE_TIMEOUT = 60    
 FIREWALL_DEFAULT_HARD_TIMEOUT = 300   # 5 minutes max
 
 
@@ -23,10 +23,10 @@ REST_PORT = 8080
  
 FIREWALL_API_KEY = "sdn-lab-secret-2025"
  
-LLDP_INTERVAL = 5   # seconds between LLDP probes
+LLDP_INTERVAL = 5    
 
  
-STATS_INTERVAL = 10  # seconds between flow stat polls
+STATS_INTERVAL = 10   
 
 
 LOGGING_CONFIG = "config/logging.yaml"

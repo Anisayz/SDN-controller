@@ -16,7 +16,7 @@ class TopologyDiscovery(app_manager.RyuApp):
 
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
-    # Tell Ryu this app depends on the built-in topology watcher.
+     # Tell Ryu this app depends on the built-in topology watcher.
     # Ryu will start that module automatically alongside this app.
     _CONTEXTS = {"switches": __import__(
         "ryu.topology.switches", fromlist=["Switches"]
@@ -26,13 +26,13 @@ class TopologyDiscovery(app_manager.RyuApp):
         super().__init__(*args, **kwargs)
         logger.info("TopologyDiscovery app started")
 
-    # ------------------------------------------------------------------ #
+     # ------------------------------------------------------------------ #
     #  Switch events                                                       #
     # ------------------------------------------------------------------ #
 
     @set_ev_cls(topo_event.EventSwitchEnter)
     def switch_enter_handler(self, ev):
-      
+    
         switch = ev.switch
         dpid = switch.dp.id
         ports = switch.ports
@@ -57,7 +57,7 @@ class TopologyDiscovery(app_manager.RyuApp):
         logger.warning("Switch LEAVE | dpid=%016x", dpid)
         self._refresh_topology()
 
-    # ------------------------------------------------------------------ #
+     # ------------------------------------------------------------------ #
     #  Link events                                                         #
     # ------------------------------------------------------------------ #
 
@@ -85,7 +85,7 @@ class TopologyDiscovery(app_manager.RyuApp):
         )
         self._refresh_topology()
 
-    # ------------------------------------------------------------------ #
+     # ------------------------------------------------------------------ #
     #  Port events                                                         #
     # ------------------------------------------------------------------ #
 
@@ -109,28 +109,25 @@ class TopologyDiscovery(app_manager.RyuApp):
     def port_modify_handler(self, ev):
         port = ev.port
         logger.info(
-            "Port MOD  | dpid=%016x | port_no=%d | hw_addr=%s",
-            port.dpid, port.port_no, port.hw_addr,
-        )
+                "Port MOD  | dpid=%016x | port_no=%d | hw_addr=%s",
+                port.dpid, port.port_no, port.hw_addr,
+            )
 
-    # ------------------------------------------------------------------ #
-    #  Internal                                                            #
-    # ------------------------------------------------------------------ #
+        # ------------------------------------------------------------------ #
+        #  Internal                                                            #
+        # ------------------------------------------------------------------ #
 
     def _refresh_topology(self):
-       
+    
         links = get_link(self, None)   # None = all switches
         store.update_topology(links)
-
         # print a human-readable map to the log
         self._log_topology_map(links)
-
     def _log_topology_map(self, links):
-       
+    
         if not links:
             logger.info("Topology map: (no inter-switch links yet)")
             return
-
         logger.info("Topology map (%d links):", len(links))
         seen = set()
         for link in links:

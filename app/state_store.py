@@ -1,4 +1,3 @@
-
 import logging
 import threading
 from collections import defaultdict
@@ -9,10 +8,11 @@ logger = logging.getLogger("ryu_lab.state_store")
 class StateStore:
 
     def __init__(self):
-        self._lock = threading.Lock()
+        self._lock         = threading.Lock()
         self._mac_table    = defaultdict(dict)
         self._datapaths    = {}
         self._ip_to_dpid   = {}
+        self._mac_to_ips   = defaultdict(list)   # mac → [ip, ...]
         self._topology     = defaultdict(dict)
         self._firewall_rules = {}
         logger.info("StateStore initialised")
@@ -81,6 +81,17 @@ class StateStore:
             self._ip_to_dpid[ip] = dpid
             logger.debug("IP learned | ip=%s | dpid=%016x", ip, dpid)
 
+    def learn_ip_for_mac(self, mac: str, ip: str):
+        """Associate an IP with a MAC address for host enrichment."""
+        with self._lock:
+            if ip not in self._mac_to_ips[mac]:
+                self._mac_to_ips[mac].append(ip)
+                logger.debug("IP→MAC learned | mac=%s | ip=%s", mac, ip)
+
+    def get_ips_for_mac(self, mac: str) -> list:
+        with self._lock:
+            return list(self._mac_to_ips.get(mac, []))
+
     def get_datapath_for_ip(self, ip):
         with self._lock:
             dpid = self._ip_to_dpid.get(ip)
@@ -109,7 +120,7 @@ class StateStore:
     # ------------------------------------------------------------------ #
     #  Firewall rule store                                                 #
     # ------------------------------------------------------------------ #
-  
+
     # Rule dict:
     # {
     #   "rule_id":      str (uuid4),
@@ -151,8 +162,8 @@ class StateStore:
         with self._lock:
             rule = self._firewall_rules.get(rule_id)
             return dict(rule) if rule else None
+
     def mark_rule_inactive(self, rule_id):
-       
         with self._lock:
             if rule_id in self._firewall_rules:
                 self._firewall_rules[rule_id]["active"] = False
@@ -161,7 +172,6 @@ class StateStore:
             return False
 
     def remove_firewall_rule(self, rule_id):
-      
         with self._lock:
             if rule_id in self._firewall_rules:
                 rule = self._firewall_rules.pop(rule_id)
@@ -192,7 +202,11 @@ class StateStore:
             logger.info("MAC table:")
             for dpid, table in self._mac_table.items():
                 for mac, port in table.items():
-                    logger.info("  dpid=%016x | %s → port %s", dpid, mac, port)
+                    ips = self._mac_to_ips.get(mac, [])
+                    logger.info(
+                        "  dpid=%016x | %s → port %s | ips=%s",
+                        dpid, mac, port, ips,
+                    )
             logger.info("Firewall rules (%d):", len(self._firewall_rules))
             for rid, r in self._firewall_rules.items():
                 logger.info("  id=%s | action=%-10s | ip=%-15s | active=%s",
