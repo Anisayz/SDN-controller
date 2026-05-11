@@ -1,0 +1,46 @@
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  detailed:
+    format: "%(asctime)s | %(levelname)-8s | %(name)-20s | %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+  simple:
+    format: "%(asctime)s | %(levelname)-8s | %(message)s"
+    datefmt: "%H:%M:%S"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: DEBUG
+    formatter: simple
+    stream: ext://sys.stdout
+
+  file:
+    class: logging.handlers.RotatingFileHandler
+    level: DEBUG
+    formatter: detailed
+    filename: logs/ryu_lab.log
+    maxBytes: 5242880   # 5 MB
+    backupCount: 3
+    encoding: utf8
+
+loggers:
+  ryu_lab.l2_switch:
+    level: DEBUG
+    handlers: [console, file]
+    propagate: false
+
+  ryu_lab.topology:
+    level: DEBUG
+    handlers: [console, file]
+    propagate: false
+
+  ryu_lab.state_store:
+    level: DEBUG
+    handlers: [console, file]
+    propagate: false
+
+root:
+  level: INFO
+  handlers: [console, file]
